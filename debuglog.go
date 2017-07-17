@@ -1,31 +1,55 @@
 package printfdebug
 
 import (
-	"runtime"
-	"fmt"
+	"encoding/json"
 	"os"
-	"runtime/debug"
+	"runtime"
 )
 
-func Debug() {
-	maxStackSize := 1024
-	skips := 2
-	pc := make([]uintptr, maxStackSize)
+const (
+	skips = 3
+)
+
+var (
+	MaxStackSize = 1024
+	OutputFile   = os.Stdout
+)
+
+type LogMessage struct {
+	Tag    string          `json:"tag"`
+	Frames []runtime.Frame `json:"frames"`
+}
+
+func printDebugMsg(tag string) {
+	logmsg := LogMessage{}
+	logmsg.Tag = tag
+	logmsg.Frames = make([]runtime.Frame, 0, MaxStackSize)
+
+	pc := make([]uintptr, MaxStackSize)
 	pclen := runtime.Callers(skips, pc)
 	pc = pc[:pclen]
 
-	s := fmt.Sprintf("StackTrace\n")
-	frames := runtime.CallersFrames(pc);
+	frames := runtime.CallersFrames(pc)
 	for {
 		frame, more := frames.Next()
 		if more == false {
 			break
 		}
 
-		s += fmt.Sprintf("  %s:%d (%s) PC=%d, func=%s entry=%d\n",
-			frame.File, frame.Line, frame.Function,
-			frame.PC, frame.Func, frame.Entry)
+		logmsg.Frames = append(logmsg.Frames, frame)
 	}
-	print(s)
-	os.Stdout.Write(debug.Stack())
+	js, err := json.Marshal(logmsg)
+	if err != nil {
+		panic(err)
+	}
+	OutputFile.Write(js)
+	OutputFile.Write([]byte("\n"))
+}
+
+func FuncStart() {
+	printDebugMsg("funcStart")
+}
+
+func FuncEnd() {
+	printDebugMsg("funcEnd")
 }
