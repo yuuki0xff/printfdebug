@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -205,15 +206,24 @@ func main() {
 		}
 
 		fmt.Println("pkgs len", len(pkgs))
-		for pkgname, pkg := range pkgs {
-			for _, file := range pkg.Files {
-				fmt.Println(pkgname, ":", file.Name)
+		for _, pkg := range pkgs {
+			fmt.Println("pkgname:", pkg.Name)
+			for fpath, file := range pkg.Files {
+				fmt.Println(fpath)
 				if error := addPrintf(file); error != nil {
 					fmt.Println(error)
 					return
 				}
 
-				format.Node(os.Stdout, token.NewFileSet(), file)
+				if err := os.Remove(fpath); err != nil {
+					panic(err)
+				}
+				f, err := os.Create(fpath)
+				if err != nil {
+					panic(err)
+				}
+				defer f.Close()
+				format.Node(f, fset, file)
 			}
 		}
 	}
