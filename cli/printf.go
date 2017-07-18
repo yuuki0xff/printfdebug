@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"reflect"
 )
 
@@ -20,6 +21,21 @@ const (
 func parseFlag() (dirs []string) {
 	flag.Parse()
 	dirs = flag.Args()
+	return
+}
+
+func getAllChildDirs(dirs []string) (childs []string, err error) {
+	for _, dir := range dirs {
+		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if info.IsDir() {
+				childs = append(childs, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -179,6 +195,10 @@ func addPrintf(file *ast.File) error {
 	}
 
 	if isAddedDebugLog {
+		if importDecl == nil {
+			importDecl = &ast.GenDecl{}
+			file.Decls = append(file.Decls, importDecl)
+		}
 		importDecl.Specs = append(importDecl.Specs, getImportSpec())
 		file.Imports = append(file.Imports, getImportSpec())
 		for _, imp := range file.Imports {
@@ -194,9 +214,14 @@ func addPrintf(file *ast.File) error {
 }
 
 func main() {
-	packageDirs := parseFlag()
+	dirs := parseFlag()
 
-	for _, dirname := range packageDirs {
+	dirs, err := getAllChildDirs(dirs)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, dirname := range dirs {
 		fset := token.NewFileSet()
 		pkgs, error := parser.ParseDir(fset, dirname, nil, 0)
 		if error != nil {
