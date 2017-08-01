@@ -2,17 +2,22 @@ package printfdebug
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"runtime"
+	"sync"
 )
 
 const (
-	skips = 3
+	EnvName = "PRINTFDEBUG_LOG"
+	skips   = 3
 )
 
 var (
 	MaxStackSize = 1024
-	OutputFile   = os.Stdout
+	OutputFile   *os.File
+
+	lock = sync.Mutex{}
 )
 
 type LogMessage struct {
@@ -41,6 +46,18 @@ func printDebugMsg(tag string) {
 	js, err := json.Marshal(logmsg)
 	if err != nil {
 		panic(err)
+	}
+
+	lock.Lock()
+	defer lock.Unlock()
+	if OutputFile == nil {
+		pid := os.Getpid()
+		prefix := os.Getenv(EnvName)
+		fpath := fmt.Sprintf("%s.%d.log", prefix, pid)
+		OutputFile, err = os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
 	}
 	OutputFile.Write(js)
 	OutputFile.Write([]byte("\n"))
