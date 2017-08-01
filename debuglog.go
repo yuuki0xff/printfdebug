@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"time"
 )
 
 const (
@@ -21,12 +22,14 @@ var (
 )
 
 type LogMessage struct {
-	Tag    string          `json:"tag"`
-	Frames []runtime.Frame `json:"frames"`
+	Timestamp int64           `json:"timestamp"`
+	Tag       string          `json:"tag"`
+	Frames    []runtime.Frame `json:"frames"`
 }
 
 func printDebugMsg(tag string) {
 	logmsg := LogMessage{}
+	logmsg.Timestamp = time.Now().Unix()
 	logmsg.Tag = tag
 	logmsg.Frames = make([]runtime.Frame, 0, MaxStackSize)
 
